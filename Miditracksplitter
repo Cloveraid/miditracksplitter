@@ -1,0 +1,56 @@
+import pretty_midi
+import os
+from tkinter import Tk, filedialog
+
+def split_midi_tracks_with_pretty_midi(input_file):
+    try:
+        midi_data = pretty_midi.PrettyMIDI(input_file)
+    except Exception as e:
+        print(f"오류 발생: MIDI 파일 분석 실패 - {str(e)}")
+        return
+
+    # 출력 폴더 생성
+    base_folder = os.path.dirname(input_file)
+    output_folder = os.path.join(base_folder, "split_tracks")
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    # 중복 이름 확인을 위한 딕셔너리
+    track_name_count = {}
+
+    # 각 악기를 독립된 MIDI 파일로 저장
+    for i, instrument in enumerate(midi_data.instruments):
+        # 새로운 MIDI 파일 생성
+        new_midi = pretty_midi.PrettyMIDI()
+        new_instrument = pretty_midi.Instrument(
+            program=0, name=instrument.name, is_drum=instrument.is_drum
+        )  # Program channel 정보 제거
+        new_instrument.notes.extend(instrument.notes)
+        new_midi.instruments.append(new_instrument)
+
+        # 파일 이름 설정
+        base_name = instrument.name.strip() if instrument.name else f"instrument_{i + 1}"
+        if base_name in track_name_count:
+            track_name_count[base_name] += 1
+            unique_name = f"{base_name}_{track_name_count[base_name]}"
+        else:
+            track_name_count[base_name] = 1
+            unique_name = base_name
+
+        output_file = os.path.join(output_folder, f"{unique_name}.mid")
+
+        # 파일 저장
+        try:
+            new_midi.write(output_file)
+            print(f"{unique_name} 저장 완료: {output_file}")
+        except Exception as e:
+            print(f"{unique_name} 저장 실패: {str(e)}")
+
+if __name__ == "__main__":
+    # 파일 대화 상자를 사용하여 MIDI 파일 선택
+    Tk().withdraw()  # Tkinter 기본 창 숨기기
+    input_midi_file = filedialog.askopenfilename(title="MIDI 파일 선택", filetypes=[("MIDI files", "*.mid")])
+
+    if input_midi_file:
+        print("[pretty_midi] 트랙 분리 실행")
+        split_midi_tracks_with_pretty_midi(input_midi_file)
